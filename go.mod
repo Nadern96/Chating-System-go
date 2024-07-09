@@ -1,4 +1,4 @@
-module Chat-System
+module github.com/nadern96/Chating-System-go
 
 go 1.21.8
 

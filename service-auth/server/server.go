@@ -1,3 +1,5 @@
+package server
+
 type AuthServer struct {
 }
 
