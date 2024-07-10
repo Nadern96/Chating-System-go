@@ -15,6 +15,7 @@ import (
 
 type ServiceContext interface {
 	Logger() *logrus.Logger
+	GetCassandra() *gocql.Session
 }
 
 type DefaultServiceContext struct {
@@ -107,4 +108,11 @@ func (ctx *DefaultServiceContext) WithCassandra() *DefaultServiceContext {
 	}
 	ctx.cassandra = Session
 	return ctx
+}
+
+func (ctx *DefaultServiceContext) GetCassandra() *gocql.Session {
+	if ctx.cassandra == nil {
+		ctx.cassandra = ctx.WithCassandra().cassandra
+	}
+	return ctx.cassandra
 }
