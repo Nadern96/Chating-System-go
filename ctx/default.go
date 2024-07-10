@@ -116,7 +116,9 @@ func (ctx *DefaultServiceContext) WithCassandra() *DefaultServiceContext {
 	cluster.ConnectTimeout = 1 * time.Minute
 	if os.Getenv("ENVIRONMENT") == "local" {
 		cluster.DisableInitialHostLookup = true
+		cluster.Consistency = gocql.Any
 	}
+
 	cluster.Keyspace = os.Getenv("CASSANDRA_KEYSPACE")
 	cluster.ConnectTimeout = 1 * time.Minute
 	cluster.Timeout = 1 * time.Minute
