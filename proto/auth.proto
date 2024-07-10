@@ -1,19 +1,19 @@
 syntax = "proto3";
-option go_package = ".;proto";
+option go_package = "./proto";
 
 package proto;
 
-message CreateUserRequest {
+message RegisterRequest {
     string userName = 1;
     string password = 2;
 }
 
-message CreateUserResponse {
+message RegisterResponse {
     string message = 1;
 }
 
 
 service auth {
-    rpc createUser(CreateUserRequest) returns (CreateUserResponse);
+    rpc Register(RegisterRequest) returns (RegisterResponse);
 }
 

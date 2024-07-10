@@ -3,6 +3,7 @@ package ctx
 import (
 	"context"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -24,6 +25,7 @@ type DefaultServiceContext struct {
 	signalStop    context.CancelFunc
 	signalContext context.Context
 	cassandra     *gocql.Session
+	httpServer    *http.Server
 }
 
 func NewDefaultServiceContext() *DefaultServiceContext {
@@ -61,6 +63,15 @@ func (ctx *DefaultServiceContext) Logger() *logrus.Logger {
 func (ctx *DefaultServiceContext) Shutdown() {
 	<-ctx.signalContext.Done()
 
+	if ctx.httpServer != nil {
+		c, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+		err := ctx.httpServer.Shutdown(c)
+		if err != nil {
+			ctx.Logger().Errorln(err)
+		}
+	}
+
 	if ctx.grpcServer != nil {
 		ctx.grpcServer.GracefulStop()
 	}
@@ -69,6 +80,19 @@ func (ctx *DefaultServiceContext) Shutdown() {
 		ctx.cassandra.Close()
 	}
 	ctx.signalStop()
+}
+
+func (ctx *DefaultServiceContext) ListenHTTP(port string, handler http.Handler) {
+	srv := &http.Server{
+		Addr:    ":" + port,
+		Handler: handler,
+	}
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			ctx.Logger().Fatal(err)
+		}
+	}()
+	ctx.httpServer = srv
 }
 
 func (ctx *DefaultServiceContext) ListenGRPC(port string, registerFn func(*grpc.Server), opt ...grpc.ServerOption) {
@@ -88,8 +112,7 @@ func (ctx *DefaultServiceContext) ListenGRPC(port string, registerFn func(*grpc.
 }
 
 func (ctx *DefaultServiceContext) WithCassandra() *DefaultServiceContext {
-	cluster := gocql.NewCluster(os.Getenv("CASSANDRA_URL"))
-	cluster.Port = 9043
+	cluster := gocql.NewCluster(os.Getenv("CASSANDRA_URL")+":9042", os.Getenv("CASSANDRA_URL")+":9043", os.Getenv("CASSANDRA_URL")+":9044")
 	cluster.ConnectTimeout = 1 * time.Minute
 	if os.Getenv("ENVIRONMENT") == "local" {
 		cluster.DisableInitialHostLookup = true

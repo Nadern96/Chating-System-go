@@ -18,7 +18,7 @@ func main() {
 	grpcServer(serviceContext)
 	serviceContext.Logger().Info("Service Auth")
 
-	var query string = "INSERT INTO auth.user(id,username,created_at) VALUES(?,?,?)"
+	var query string = "INSERT INTO auth.user(id,username,createdat) VALUES(?,?,?)"
 
 	if err := serviceContext.GetCassandra().Query(query, "1", "nader", time.Now()).Exec(); err != nil {
 		log.Println("err: ", err)
@@ -30,7 +30,7 @@ func main() {
 	var id string
 
 	serviceContext.GetCassandra().Query("select * from auth.user").Scan(&id, &createdAt, &username)
-	log.Println("id : ", id, " username: ", username, "createdAt: ", createdAt)
+	log.Println("id : ", id, " username: ", username, "createdat: ", createdAt)
 }
 
 func grpcServer(c *ctx.DefaultServiceContext) {

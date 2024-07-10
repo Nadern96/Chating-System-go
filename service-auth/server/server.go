@@ -23,8 +23,8 @@ func (s *AuthServer) GrpcLogger(c context.Context, req interface{}, info *grpc.U
 	return handler(c, req)
 }
 
-func (s *AuthServer) CreateUser(c context.Context, req *proto.CreateUserRequest) (*proto.CreateUserResponse, error) {
-	return &proto.CreateUserResponse{
+func (s *AuthServer) Register(c context.Context, req *proto.RegisterRequest) (*proto.RegisterResponse, error) {
+	return &proto.RegisterResponse{
 		Message: "success",
 	}, nil
 }
