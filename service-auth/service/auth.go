@@ -1,10 +1,13 @@
 package service
 
 import (
+	"context"
 	"errors"
+	"os"
 	"regexp"
 	"time"
 
+	"github.com/dgrijalva/jwt-go"
 	"github.com/gocql/gocql"
 	"github.com/nadern96/Chating-System-go/ctx"
 	"github.com/nadern96/Chating-System-go/model"
@@ -14,6 +17,7 @@ import (
 type AuthService struct {
 	ctx        ctx.ServiceContext
 	EmailRegex *regexp.Regexp
+	jwtKey     []byte
 }
 
 func NewAuthService(ctx ctx.ServiceContext) *AuthService {
@@ -22,18 +26,24 @@ func NewAuthService(ctx ctx.ServiceContext) *AuthService {
 	return &AuthService{
 		ctx:        ctx,
 		EmailRegex: emailRegex,
+		jwtKey:     []byte(os.Getenv("JWT_SECRET_KEY")),
 	}
 }
 
-func (s *AuthService) Register(user model.User) error {
+func (s *AuthService) Register(ctx context.Context, user model.User) error {
 	var err error
 
 	if matches := s.EmailRegex.MatchString(user.Email); !matches {
 		return errors.New("INVALID_EMAIL")
 	}
 
-	if err := s.insertUserIfNotExists(user.Email); err != nil {
+	existingUser := model.User{}
+	if existingUser, err = s.checkUserExistance(ctx, user.Email); err != nil {
 		return err
+	}
+
+	if existingUser.Email != "" {
+		return errors.New("EMAIL_ALREADY_EXISTS")
 	}
 
 	user.Password, err = utils.GenerateHashPassword(user.Password)
@@ -46,7 +56,7 @@ func (s *AuthService) Register(user model.User) error {
 
 	query := `INSERT INTO user (id, username, email, password, createdat) VALUES (?, ?, ?, ?, ?)`
 
-	err = s.ctx.GetCassandra().Query(query, user.ID, user.Username, user.Email, user.Password, user.CreatedAt).Exec()
+	err = s.ctx.GetCassandra().Query(query, user.ID, user.Username, user.Email, user.Password, user.CreatedAt).WithContext(ctx).Exec()
 	if err != nil {
 		return err
 	}
@@ -54,16 +64,54 @@ func (s *AuthService) Register(user model.User) error {
 	return nil
 }
 
-func (s *AuthService) insertUserIfNotExists(email string) error {
-	var existingEmail string
-	query := `SELECT email FROM user WHERE email = ? LIMIT 1`
+func (s *AuthService) checkUserExistance(ctx context.Context, email string) (model.User, error) {
+	var user model.User
+	query := `SELECT id, username, password, email, createdAt FROM user WHERE email = ? LIMIT 1`
 
-	if err := s.ctx.GetCassandra().Query(query, email).Scan(&existingEmail); err != nil {
+	if err := s.ctx.GetCassandra().Query(query, email).WithContext(ctx).Scan(&user.ID, &user.Username, &user.Password, &user.Email, &user.CreatedAt); err != nil {
 		if err == gocql.ErrNotFound {
-			return nil
+			return model.User{}, nil
 		}
-		return err
+		return model.User{}, err
 	}
 
-	return errors.New("EMAIL_ALREADY_EXISTS")
+	return user, nil
+}
+
+func (s *AuthService) Login(ctx context.Context, user model.User) (string, error) {
+	var err error
+
+	if matches := s.EmailRegex.MatchString(user.Email); !matches {
+		return "", errors.New("INVALID_EMAIL")
+	}
+
+	existingUser := model.User{}
+	if existingUser, err = s.checkUserExistance(ctx, user.Email); err != nil {
+		if err == gocql.ErrNotFound {
+			return "", errors.New("EMAIL_NOT_FOUND")
+		}
+
+		return "", err
+	}
+
+	passwordMatch := utils.CompareHashPassword(user.Password, existingUser.Password)
+	if !passwordMatch {
+		return "", errors.New("WRONG_PASSWORD_OR_EMAIL")
+	}
+
+	expirationTime := time.Now().Add(5 * time.Minute)
+	claims := &model.Claims{
+		StandardClaims: jwt.StandardClaims{
+			Subject:   existingUser.Email,
+			ExpiresAt: expirationTime.Unix(),
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := token.SignedString(s.jwtKey)
+	if err != nil {
+		return "", err
+	}
+
+	return tokenString, err
 }

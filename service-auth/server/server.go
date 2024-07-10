@@ -31,17 +31,32 @@ func (s *AuthServer) GrpcLogger(c context.Context, req interface{}, info *grpc.U
 func (s *AuthServer) Register(c context.Context, req *proto.RegisterRequest) (*proto.RegisterResponse, error) {
 	op := "AuthServer.Register"
 
-	err := s.authService.Register(model.User{
+	err := s.authService.Register(c, model.User{
 		Username: req.UserName,
 		Password: req.Password,
 		Email:    req.Email,
 	})
 	if err != nil {
-		s.ctx.Logger().Error(op+"authService.Register err: ", err)
+		s.ctx.Logger().Error(op+".authService.Register err: ", err)
 		return nil, err
 	}
 
 	return &proto.RegisterResponse{
 		Message: "success",
 	}, nil
+}
+
+func (s *AuthServer) Login(c context.Context, req *proto.LoginRequest) (*proto.LoginResponse, error) {
+	op := "AuthServer.Login"
+
+	token, err := s.authService.Login(c, model.User{
+		Email:    req.Email,
+		Password: req.Password,
+	})
+	if err != nil {
+		s.ctx.Logger().Error(op+".authService.Login err: ", err)
+		return nil, err
+	}
+
+	return &proto.LoginResponse{Token: token}, nil
 }
