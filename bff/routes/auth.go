@@ -45,7 +45,7 @@ func (r *AuthRouter) Register(ginCtx *gin.Context) {
 	res, err := r.authClient.Register(context.TODO(), req)
 	if err != nil {
 		r.serviceContext.Logger().Error(op+".Register err: ", err)
-		ginCtx.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		ginCtx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
