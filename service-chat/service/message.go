@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 
+	"github.com/go-redis/redis"
 	"github.com/gocql/gocql"
 	"github.com/nadern96/Chating-System-go/ctx"
 	"github.com/nadern96/Chating-System-go/model"
@@ -106,6 +108,30 @@ func (s *MessageService) GetChatMessages(ctx context.Context, chatId, startMsgId
 		return nil, err
 	}
 
+	// Get Cached msgs from redis
+	redisClient := s.ctx.Redis()
+	redisRes, err := redisClient.Get(chatId).Result()
+	if err != nil && err != redis.Nil {
+		s.ctx.Logger().Errorln(op+".redisClient.Get(chatId) err: ", err)
+		return nil, err
+	}
+
+	var chatCache model.ChatCache
+
+	if err == nil {
+		err = json.Unmarshal([]byte(redisRes), &chatCache)
+		if err != nil {
+			s.ctx.Logger().Error(op+"Error deserializing data: %v", err)
+			return nil, err
+		}
+
+		if chatCache.StartMsgId == startMsgId {
+			s.ctx.Logger().Info(op + "Got messages from cache")
+
+			return chatCache.Messages, nil
+		}
+	}
+
 	baseQuery := "SELECT chatId, messageId, fromUserId, toUserId, content, createdAt FROM message WHERE chatId = ?"
 	var query string
 	var iter *gocql.Iter
@@ -113,13 +139,13 @@ func (s *MessageService) GetChatMessages(ctx context.Context, chatId, startMsgId
 	if startMsgId != "" {
 		msgUUID, err := gocql.ParseUUID(startMsgId)
 		if err != nil {
+			s.ctx.Logger().Errorln(op+".ParseUUID.startMsgId err: ", err)
 			return nil, err
 		}
 
 		query = baseQuery + " AND messageId <= ? ORDER BY messageId DESC LIMIT 10"
 		iter = s.ctx.GetCassandra().Query(query, chatIdUUID, msgUUID).WithContext(ctx).Iter()
 	} else {
-		// Construct query without messageId condition
 		query = baseQuery + " ORDER BY messageId DESC LIMIT 10"
 		iter = s.ctx.GetCassandra().Query(query, chatIdUUID).WithContext(ctx).Iter()
 	}
@@ -135,6 +161,24 @@ func (s *MessageService) GetChatMessages(ctx context.Context, chatId, startMsgId
 
 	if err := iter.Close(); err != nil {
 		s.ctx.Logger().Errorln(op+".iter err: ", err)
+		return nil, err
+	}
+
+	// store last accessed messages in cache
+	chatCache = model.ChatCache{
+		Messages:   messages,
+		StartMsgId: startMsgId,
+	}
+
+	chatCacheJson, err := json.Marshal(chatCache)
+	if err != nil {
+		s.ctx.Logger().Errorln(op+".json.Marshal.err : %v", err)
+		return nil, err
+	}
+
+	res := redisClient.Set(chatId, chatCacheJson, 0)
+	if res.Err() != nil {
+		s.ctx.Logger().Errorln(op+".redisErr: ", err)
 		return nil, err
 	}
 

@@ -70,3 +70,8 @@ func (c Chat) ToProto() *proto.Chat {
 		FromUserId: c.FromUserID.String(),
 	}
 }
+
+type ChatCache struct {
+	Messages   []Message
+	StartMsgId string
+}
