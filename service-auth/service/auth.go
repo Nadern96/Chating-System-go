@@ -113,5 +113,11 @@ func (s *AuthService) Login(ctx context.Context, user model.User) (string, error
 		return "", err
 	}
 
+	redisRes := s.ctx.Redis().Set(user.Email, existingUser.ID.String(), time.Minute*10)
+	if redisRes.Err() != nil {
+		s.ctx.Logger().Println("err : ", redisRes.Err())
+		return "", redisRes.Err()
+	}
+
 	return tokenString, err
 }

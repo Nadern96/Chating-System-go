@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/go-redis/redis"
 	"github.com/gocql/gocql"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
@@ -17,6 +18,7 @@ import (
 type ServiceContext interface {
 	Logger() *logrus.Logger
 	GetCassandra() *gocql.Session
+	Redis() *redis.Client
 }
 
 type DefaultServiceContext struct {
@@ -26,6 +28,7 @@ type DefaultServiceContext struct {
 	signalContext context.Context
 	cassandra     *gocql.Session
 	httpServer    *http.Server
+	redisClient   *redis.Client
 }
 
 func NewDefaultServiceContext() *DefaultServiceContext {
@@ -79,6 +82,11 @@ func (ctx *DefaultServiceContext) Shutdown() {
 	if ctx.cassandra != nil {
 		ctx.cassandra.Close()
 	}
+
+	if ctx.redisClient != nil {
+		ctx.redisClient.Close()
+	}
+
 	ctx.signalStop()
 }
 
@@ -140,4 +148,22 @@ func (ctx *DefaultServiceContext) GetCassandra() *gocql.Session {
 		ctx.cassandra = ctx.WithCassandra().cassandra
 	}
 	return ctx.cassandra
+}
+
+func (ctx *DefaultServiceContext) WithRedis() *DefaultServiceContext {
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:         os.Getenv("REDIS_URL"),
+		ReadTimeout:  time.Minute,
+		DialTimeout:  time.Minute,
+		WriteTimeout: time.Minute,
+	})
+	ctx.redisClient = redisClient
+	return ctx
+}
+
+func (ctx *DefaultServiceContext) Redis() *redis.Client {
+	if ctx.redisClient == nil {
+		ctx.redisClient = ctx.WithRedis().redisClient
+	}
+	return ctx.redisClient
 }

@@ -2,11 +2,13 @@ package server
 
 import (
 	"context"
+	"errors"
 
 	"github.com/nadern96/Chating-System-go/ctx"
 	"github.com/nadern96/Chating-System-go/model"
 	"github.com/nadern96/Chating-System-go/proto"
 	"github.com/nadern96/Chating-System-go/service-auth/service"
+	"github.com/nadern96/Chating-System-go/utils"
 	"google.golang.org/grpc"
 )
 
@@ -59,4 +61,25 @@ func (s *AuthServer) Login(c context.Context, req *proto.LoginRequest) (*proto.L
 	}
 
 	return &proto.LoginResponse{Token: token}, nil
+}
+
+func (s *AuthServer) Verify(c context.Context, req *proto.VerifyRequest) (*proto.VerifyResponse, error) {
+	op := "AuthServer.Verify"
+
+	claims, err := utils.ParseToken(req.Token)
+	if err != nil {
+		s.ctx.Logger().Error(op+".authService.Verify.ParseToken err: ", err)
+		return nil, err
+	}
+
+	email := claims.StandardClaims.Subject
+
+	redisClient := s.ctx.Redis()
+	redisVal, err := redisClient.Get(email).Result()
+	if err != nil {
+		s.ctx.Logger().Error(op+".authService.Verify.redisClient.Get err: ", err)
+		return nil, errors.New("UN_AUTHORIZED")
+	}
+
+	return &proto.VerifyResponse{Message: redisVal}, nil
 }

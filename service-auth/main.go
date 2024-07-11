@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	serviceContext := ctx.NewDefaultServiceContext().WithCassandra()
+	serviceContext := ctx.NewDefaultServiceContext().WithCassandra().WithRedis()
 	defer serviceContext.Shutdown()
 	grpcServer(serviceContext)
 	serviceContext.Logger().Info("Service Auth")

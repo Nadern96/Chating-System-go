@@ -1,7 +1,9 @@
 package routes
 
 import (
+	"log"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/nadern96/Chating-System-go/ctx"
@@ -26,7 +28,30 @@ func NewAuthRouter(serviceContext ctx.ServiceContext) *AuthRouter {
 func (r *AuthRouter) Install(engine *gin.RouterGroup) {
 	engine.POST("/login", r.Login)
 	engine.POST("/register", r.Register)
-	// r.GET("/logout", controllers.Logout)
+	engine.GET("/logout", r.AuthVerify(), r.Logout)
+}
+func (r *AuthRouter) AuthVerify() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		log.Println("authorization = ", c.Request.Header["Authorization"])
+
+		if len(c.Request.Header["Authorization"]) == 0 {
+			r.serviceContext.Logger().Error("Invalid Headers, unauthorized")
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "UNAUTHORIZED"})
+			return
+		}
+
+		token := strings.Split(c.Request.Header["Authorization"][0], " ")[1]
+
+		res, err := r.authClient.Verify(c, &proto.VerifyRequest{Token: token})
+		if err != nil {
+			r.serviceContext.Logger().Error("AuthVerify err: ", err)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.Request.Header.Set("USER_ID", res.Message)
+		c.Next()
+	}
 }
 
 func (r *AuthRouter) Register(ginCtx *gin.Context) {
@@ -68,4 +93,9 @@ func (r *AuthRouter) Login(ginCtx *gin.Context) {
 	}
 
 	ginCtx.JSON(http.StatusOK, res)
+}
+
+func (r *AuthRouter) Logout(ginCtx *gin.Context) {
+	r.serviceContext.Logger().Println("headers ", ginCtx.Request.Header)
+	ginCtx.JSON(http.StatusOK, "")
 }
