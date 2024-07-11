@@ -29,7 +29,7 @@ message StartChatRequest {
 }
 
 message StartChatResponse {
-    string message = 1;
+    string chatId = 1;
 }
 
 message Chat {

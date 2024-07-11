@@ -10,3 +10,4 @@ var ErrEmailNotFound = errors.New(EmailNotFound)
 var ErrWrongCred = errors.New(WrongCred)
 
 var ErrChatIdNotExist = errors.New(ChatIdNotExist)
+var ErrChatAlreadyExists = errors.New(ChatAlreadyExists)

@@ -119,7 +119,7 @@ func (s *ChatServer) StartChat(c context.Context, req *proto.StartChatRequest) (
 	}
 
 	return &proto.StartChatResponse{
-		Message: model.Success,
+		ChatId: chat.ChatID.String(),
 	}, nil
 }
 

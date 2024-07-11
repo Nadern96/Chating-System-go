@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"log"
 
 	"github.com/go-redis/redis"
 	"github.com/gocql/gocql"
@@ -73,9 +74,17 @@ func (s *MessageService) GetUserChats(ctx context.Context, userId string) ([]mod
 }
 
 func (s *MessageService) StartChat(ctx context.Context, chat model.Chat) error {
-	query := `INSERT INTO chat (chatid, fromUserId, toUserId) VALUES (?, ?, ?)`
+	exist, err := s.isChatAlreadyExist(ctx, chat.FromUserID, chat.ToUserID)
+	if err != nil {
+		return err
+	}
+	log.Println("exist = ", exist)
+	if exist {
+		return model.ErrChatAlreadyExists
+	}
 
-	err := s.ctx.GetCassandra().Query(query, chat.ChatID, chat.FromUserID, chat.ToUserID).WithContext(ctx).Exec()
+	query := `INSERT INTO chat (chatid, fromUserId, toUserId) VALUES (?, ?, ?)`
+	err = s.ctx.GetCassandra().Query(query, chat.ChatID, chat.FromUserID, chat.ToUserID).WithContext(ctx).Exec()
 	if err != nil {
 		return err
 	}
@@ -183,4 +192,32 @@ func (s *MessageService) GetChatMessages(ctx context.Context, chatId, startMsgId
 	}
 
 	return messages, nil
+}
+
+func (s *MessageService) isChatAlreadyExist(ctx context.Context, fromUserId, toUserId gocql.UUID) (bool, error) {
+	query := `SELECT chatId, touserid FROM chat WHERE fromUserId = ?`
+	iter := s.ctx.GetCassandra().Query(query, fromUserId).WithContext(ctx).Iter()
+	for {
+		chat := model.Chat{}
+		if !iter.Scan(&chat.ChatID, &chat.ToUserID) {
+			break
+		}
+		if chat.ToUserID == toUserId {
+			return true, nil
+		}
+	}
+
+	query = `SELECT chatId, fromUserId FROM chat WHERE toUserId = ?`
+	iter = s.ctx.GetCassandra().Query(query, toUserId).WithContext(ctx).Iter()
+	for {
+		chat := model.Chat{}
+		if !iter.Scan(&chat.ChatID, &chat.FromUserID) {
+			break
+		}
+		if chat.FromUserID == fromUserId {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
