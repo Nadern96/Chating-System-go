@@ -29,7 +29,7 @@ func (s *AuthServer) GrpcLogger(c context.Context, req interface{}, info *grpc.U
 	return handler(c, req)
 }
 
-func (s *AuthServer) Register(c context.Context, req *proto.RegisterRequest) (*proto.RegisterResponse, error) {
+func (s *AuthServer) Register(c context.Context, req *proto.RegisterRequest) (*proto.SuccessResponse, error) {
 	op := "AuthServer.Register"
 
 	err := s.authService.Register(c, model.User{
@@ -42,8 +42,8 @@ func (s *AuthServer) Register(c context.Context, req *proto.RegisterRequest) (*p
 		return nil, err
 	}
 
-	return &proto.RegisterResponse{
-		Message: "success",
+	return &proto.SuccessResponse{
+		Message: model.Success,
 	}, nil
 }
 
@@ -81,4 +81,25 @@ func (s *AuthServer) Verify(c context.Context, req *proto.VerifyRequest) (*proto
 	}
 
 	return &proto.VerifyResponse{Message: redisVal}, nil
+}
+
+func (s *AuthServer) Logout(c context.Context, req *proto.LogoutRequest) (*proto.SuccessResponse, error) {
+	op := "AuthServer.Logout"
+
+	claims, err := utils.ParseToken(req.Token)
+	if err != nil {
+		s.ctx.Logger().Error(op+".authService.Logout.ParseToken err: ", err)
+		return nil, err
+	}
+
+	email := claims.StandardClaims.Subject
+
+	redisClient := s.ctx.Redis()
+	_, err = redisClient.Del(email).Result()
+	if err != nil {
+		s.ctx.Logger().Error(op+".authService.Verify.redisClient.Del err: ", err)
+		return nil, err
+	}
+
+	return &proto.SuccessResponse{Message: model.Success}, nil
 }

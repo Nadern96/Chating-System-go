@@ -51,7 +51,7 @@ func (r *ChatRouter) AuthVerify() gin.HandlerFunc {
 		res, err := r.authClient.Verify(c, &proto.VerifyRequest{Token: token})
 		if err != nil {
 			r.serviceContext.Logger().Error("AuthVerify err: ", err)
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "UNAUTHORIZED"})
 			return
 		}
 
