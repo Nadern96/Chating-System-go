@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"log"
 
 	"github.com/go-redis/redis"
 	"github.com/gocql/gocql"
@@ -22,6 +21,8 @@ func NewMessageService(ctx ctx.ServiceContext) *MessageService {
 }
 
 func (s *MessageService) Send(ctx context.Context, msg model.Message) error {
+	op := "MessageService.Send"
+
 	exist, err := s.isChatExist(ctx, msg.ChatID)
 	if err != nil {
 		return err
@@ -34,6 +35,13 @@ func (s *MessageService) Send(ctx context.Context, msg model.Message) error {
 	query := `INSERT INTO message (chatid, messageid, fromUserId, toUserId, content, createdAt) VALUES (?, ?, ?, ?, ?, ?)`
 	err = s.ctx.GetCassandra().Query(query, msg.ChatID, msg.MessageID, msg.FromUserID, msg.ToUserID, msg.Content, msg.CreatedAt).WithContext(ctx).Exec()
 	if err != nil {
+		return err
+	}
+
+	redisClient := s.ctx.Redis()
+	_, err = redisClient.Del(msg.ChatID.String()).Result()
+	if err != nil && err != redis.Nil {
+		s.ctx.Logger().Errorln(op+".redisClient.Del(chatId) err: ", err)
 		return err
 	}
 
@@ -78,7 +86,7 @@ func (s *MessageService) StartChat(ctx context.Context, chat model.Chat) error {
 	if err != nil {
 		return err
 	}
-	log.Println("exist = ", exist)
+
 	if exist {
 		return model.ErrChatAlreadyExists
 	}

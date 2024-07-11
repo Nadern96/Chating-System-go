@@ -1,0 +1,25 @@
+
+FROM golang:1.21
+
+WORKDIR /app
+
+COPY . .
+
+# Build
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main service-chat/main.go
+
+ENV PORT 80
+ENV GRPC_PORT 50051
+ENV LOG_LEVEL InfoLevel
+ENV GIN_MODE release
+
+ENV ENVIRONMENT ""
+ENV CASSANDRA_URL ""
+ENV CASSANDRA_KEYSPACE "chat"
+ENV CASSANDRA_USERNAME ""
+ENV CASSANDRA_PASSWORD ""
+ENV JWT_SECRET_KEY ""
+ENV REDIS_URL ""
+
+# Run
+CMD ["/app/main"]

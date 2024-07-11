@@ -3,22 +3,19 @@ FROM golang:1.21
 
 WORKDIR /app
 
-# Download Go modules
-COPY go.mod go.sum ./
-RUN go mod download
-
 COPY . .
 
 # Build
-RUN CGO_ENABLED=0 GOOS=linux go build -o /docker-gs-ping
-
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main service-auth/main.go
 
 ENV PORT 80
 ENV GRPC_PORT 50051
+ENV LOG_LEVEL InfoLevel
+ENV GIN_MODE release
 
 ENV ENVIRONMENT ""
 ENV CASSANDRA_URL ""
-ENV CASSANDRA_KEYSPACE ""
+ENV CASSANDRA_KEYSPACE "auth"
 ENV CASSANDRA_USERNAME ""
 ENV CASSANDRA_PASSWORD ""
 ENV JWT_SECRET_KEY ""

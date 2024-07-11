@@ -1,16 +1,21 @@
 package routes
 
 import (
-	"log"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 	"github.com/nadern96/Chating-System-go/ctx"
 	"github.com/nadern96/Chating-System-go/grpcclient"
 	"github.com/nadern96/Chating-System-go/proto"
 	"google.golang.org/grpc/metadata"
 )
+
+var upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+}
 
 type ChatRouter struct {
 	serviceContext ctx.ServiceContext
@@ -30,6 +35,7 @@ func NewChatRouter(serviceContext ctx.ServiceContext) *ChatRouter {
 }
 
 func (r *ChatRouter) Install(engine *gin.RouterGroup) {
+	engine.GET("/ws/send", r.AuthVerify(), r.SendWS)
 	engine.POST("/send", r.AuthVerify(), r.Send)
 	engine.GET("", r.AuthVerify(), r.GetUserChats)
 	engine.POST("/start", r.AuthVerify(), r.StartChat)
@@ -38,7 +44,7 @@ func (r *ChatRouter) Install(engine *gin.RouterGroup) {
 
 func (r *ChatRouter) AuthVerify() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		log.Println("authorization = ", c.Request.Header["Authorization"])
+		r.serviceContext.Logger().Infoln("authorization = ", c.Request.Header["Authorization"])
 
 		if len(c.Request.Header["Authorization"]) == 0 {
 			r.serviceContext.Logger().Error("Invalid Headers, unauthorized")
@@ -58,6 +64,40 @@ func (r *ChatRouter) AuthVerify() gin.HandlerFunc {
 		c.Request.Header.Set("USER_ID", res.Message)
 		c.Next()
 	}
+}
+
+func (r *ChatRouter) SendWS(ginCtx *gin.Context) {
+	op := "chatRouter.WS.Send"
+
+	conn, err := upgrader.Upgrade(ginCtx.Writer, ginCtx.Request, nil)
+	if err != nil {
+		return
+	}
+	defer conn.Close()
+
+	for {
+		var msg *proto.Message
+		err = conn.ReadJSON(&msg)
+		if err != nil {
+			ginCtx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			break
+		}
+
+		newCtx := metadata.AppendToOutgoingContext(ginCtx, "USER_ID", ginCtx.Request.Header.Get("USER_ID"))
+		_, err := r.chatClient.SendMessage(newCtx, msg)
+		if err != nil {
+			r.serviceContext.Logger().Error(op+".chatClient.SendMessage err: ", err)
+			ginCtx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		conn.WriteJSON(msg)
+		if err != nil {
+			ginCtx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			break
+		}
+	}
+
 }
 
 func (r *ChatRouter) Send(ginCtx *gin.Context) {
