@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"os"
 	"regexp"
 	"time"
@@ -34,7 +33,7 @@ func (s *AuthService) Register(ctx context.Context, user model.User) error {
 	var err error
 
 	if matches := s.EmailRegex.MatchString(user.Email); !matches {
-		return errors.New("INVALID_EMAIL")
+		return model.ErrInvalidEmail
 	}
 
 	existingUser := model.User{}
@@ -43,7 +42,7 @@ func (s *AuthService) Register(ctx context.Context, user model.User) error {
 	}
 
 	if existingUser.Email != "" {
-		return errors.New("EMAIL_ALREADY_EXISTS")
+		return model.ErrEmailAlreadyExists
 	}
 
 	user.Password, err = utils.GenerateHashPassword(user.Password)
@@ -82,13 +81,13 @@ func (s *AuthService) Login(ctx context.Context, user model.User) (string, error
 	var err error
 
 	if matches := s.EmailRegex.MatchString(user.Email); !matches {
-		return "", errors.New("INVALID_EMAIL")
+		return "", model.ErrInvalidEmail
 	}
 
 	existingUser := model.User{}
 	if existingUser, err = s.checkUserExistance(ctx, user.Email); err != nil {
 		if err == gocql.ErrNotFound {
-			return "", errors.New("EMAIL_NOT_FOUND")
+			return "", model.ErrEmailNotFound
 		}
 
 		return "", err
@@ -96,7 +95,7 @@ func (s *AuthService) Login(ctx context.Context, user model.User) (string, error
 
 	passwordMatch := utils.CompareHashPassword(user.Password, existingUser.Password)
 	if !passwordMatch {
-		return "", errors.New("WRONG_PASSWORD_OR_EMAIL")
+		return "", model.ErrWrongCred
 	}
 
 	expirationTime := time.Now().Add(5 * time.Minute)

@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"errors"
 
 	"github.com/nadern96/Chating-System-go/ctx"
 	"github.com/nadern96/Chating-System-go/model"
@@ -78,7 +77,7 @@ func (s *AuthServer) Verify(c context.Context, req *proto.VerifyRequest) (*proto
 	redisVal, err := redisClient.Get(email).Result()
 	if err != nil {
 		s.ctx.Logger().Error(op+".authService.Verify.redisClient.Get err: ", err)
-		return nil, errors.New("UN_AUTHORIZED")
+		return nil, model.ErrUnauthorized
 	}
 
 	return &proto.VerifyResponse{Message: redisVal}, nil

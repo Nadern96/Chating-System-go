@@ -22,5 +22,8 @@ func httpServer(c *ctx.DefaultServiceContext) {
 	authRoute := routes.NewAuthRouter(c)
 	authRoute.Install(engine.Group("/auth/"))
 
+	chatRoute := routes.NewChatRouter(c)
+	chatRoute.Install(engine.Group("/chat/"))
+
 	c.ListenHTTP(env.GetEnvValue("PORT"), engine)
 }
