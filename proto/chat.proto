@@ -22,6 +22,14 @@ message GetUserChatsResponse{
     repeated Chat chats = 1;
 }
 
+message StartChatRequest {
+    string toUserId = 1;
+}
+
+message StartChatResponse {
+    string message = 1;
+}
+
 message Chat {
     string chatId = 1;
     string fromUserId = 2;
@@ -31,5 +39,6 @@ message Chat {
 service chat {
     rpc SendMessage(message) returns (SendMessageResponse);
     rpc GetUserChats(GetUserChatsRequest) returns (GetUserChatsResponse);
+    rpc StartChat(StartChatRequest) returns (StartChatResponse);
 }
 

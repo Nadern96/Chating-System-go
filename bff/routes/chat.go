@@ -32,7 +32,7 @@ func NewChatRouter(serviceContext ctx.ServiceContext) *ChatRouter {
 func (r *ChatRouter) Install(engine *gin.RouterGroup) {
 	engine.POST("/send", r.AuthVerify(), r.Send)
 	engine.GET("", r.AuthVerify(), r.GetUserChats)
-
+	engine.POST("/start", r.AuthVerify(), r.StartChat)
 }
 
 func (r *ChatRouter) AuthVerify() gin.HandlerFunc {
@@ -62,14 +62,15 @@ func (r *ChatRouter) AuthVerify() gin.HandlerFunc {
 func (r *ChatRouter) Send(ginCtx *gin.Context) {
 	op := "chatRouter.Send"
 
-	newCtx := metadata.AppendToOutgoingContext(ginCtx, "USER_ID", ginCtx.Request.Header.Get("USER_ID"))
-	res, err := r.chatClient.SendMessage(newCtx, &proto.Message{
-		ChatId:     "",
-		FromUserId: "",
-		ToUserId:   "",
-		Content:    "Hi",
-	})
+	req := &proto.Message{}
+	err := ginCtx.BindJSON(req)
+	if err != nil {
+		ginCtx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 
+	newCtx := metadata.AppendToOutgoingContext(ginCtx, "USER_ID", ginCtx.Request.Header.Get("USER_ID"))
+	res, err := r.chatClient.SendMessage(newCtx, req)
 	if err != nil {
 		r.serviceContext.Logger().Error(op+".chatClient.SendMessage err: ", err)
 		ginCtx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -87,6 +88,27 @@ func (r *ChatRouter) GetUserChats(ginCtx *gin.Context) {
 
 	if err != nil {
 		r.serviceContext.Logger().Error(op+".chatClient.GetUserChats err: ", err)
+		ginCtx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ginCtx.JSON(http.StatusOK, res)
+}
+
+func (r *ChatRouter) StartChat(ginCtx *gin.Context) {
+	op := "chatRouter.StartChat"
+
+	req := &proto.StartChatRequest{}
+	err := ginCtx.BindJSON(req)
+	if err != nil {
+		ginCtx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	newCtx := metadata.AppendToOutgoingContext(ginCtx, "USER_ID", ginCtx.Request.Header.Get("USER_ID"))
+	res, err := r.chatClient.StartChat(newCtx, req)
+	if err != nil {
+		r.serviceContext.Logger().Error(op+".chatClient.StartChat err: ", err)
 		ginCtx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

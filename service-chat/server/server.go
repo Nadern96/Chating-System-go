@@ -3,7 +3,9 @@ package server
 import (
 	"context"
 	"errors"
+	"log"
 
+	"github.com/gocql/gocql"
 	"github.com/nadern96/Chating-System-go/ctx"
 	"github.com/nadern96/Chating-System-go/model"
 	"github.com/nadern96/Chating-System-go/proto"
@@ -78,6 +80,45 @@ func (s *ChatServer) GetUserChats(c context.Context, req *proto.GetUserChatsRequ
 	}
 
 	return res, nil
+}
+
+func (s *ChatServer) StartChat(c context.Context, req *proto.StartChatRequest) (*proto.StartChatResponse, error) {
+	op := "ChatServer.StartChat"
+
+	ok, userId := isAuthorized(c)
+	if !ok {
+		s.ctx.Logger().Error(op + "." + model.Unauthorized)
+		return nil, ErrUnauthorized
+	}
+
+	log.Println("userId = ", userId)
+	fromUserId, err := gocql.ParseUUID(userId)
+	if err != nil {
+		s.ctx.Logger().Error(op+".ParseUUID.fromUserId.err: ", err)
+		return nil, err
+	}
+
+	toUserId, err := gocql.ParseUUID(req.ToUserId)
+	if err != nil {
+		s.ctx.Logger().Error(op+".ParseUUID.toUserId.err: ", err)
+		return nil, err
+	}
+
+	chat := model.Chat{
+		ChatID:     gocql.TimeUUID(),
+		ToUserID:   fromUserId,
+		FromUserID: toUserId,
+	}
+
+	err = s.messageService.StartChat(c, chat)
+	if err != nil {
+		s.ctx.Logger().Error(op+".messageService.StartChat.err: ", err)
+		return nil, err
+	}
+
+	return &proto.StartChatResponse{
+		Message: model.Success,
+	}, nil
 }
 
 func isAuthorized(ctx context.Context) (bool, string) {

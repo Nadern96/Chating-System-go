@@ -21,6 +21,7 @@ const _ = grpc.SupportPackageIsVersion8
 const (
 	Chat_SendMessage_FullMethodName  = "/proto.chat/SendMessage"
 	Chat_GetUserChats_FullMethodName = "/proto.chat/GetUserChats"
+	Chat_StartChat_FullMethodName    = "/proto.chat/StartChat"
 )
 
 // ChatClient is the client API for Chat service.
@@ -29,6 +30,7 @@ const (
 type ChatClient interface {
 	SendMessage(ctx context.Context, in *Message, opts ...grpc.CallOption) (*SendMessageResponse, error)
 	GetUserChats(ctx context.Context, in *GetUserChatsRequest, opts ...grpc.CallOption) (*GetUserChatsResponse, error)
+	StartChat(ctx context.Context, in *StartChatRequest, opts ...grpc.CallOption) (*StartChatResponse, error)
 }
 
 type chatClient struct {
@@ -59,12 +61,23 @@ func (c *chatClient) GetUserChats(ctx context.Context, in *GetUserChatsRequest, 
 	return out, nil
 }
 
+func (c *chatClient) StartChat(ctx context.Context, in *StartChatRequest, opts ...grpc.CallOption) (*StartChatResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(StartChatResponse)
+	err := c.cc.Invoke(ctx, Chat_StartChat_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ChatServer is the server API for Chat service.
 // All implementations should embed UnimplementedChatServer
 // for forward compatibility
 type ChatServer interface {
 	SendMessage(context.Context, *Message) (*SendMessageResponse, error)
 	GetUserChats(context.Context, *GetUserChatsRequest) (*GetUserChatsResponse, error)
+	StartChat(context.Context, *StartChatRequest) (*StartChatResponse, error)
 }
 
 // UnimplementedChatServer should be embedded to have forward compatible implementations.
@@ -76,6 +89,9 @@ func (UnimplementedChatServer) SendMessage(context.Context, *Message) (*SendMess
 }
 func (UnimplementedChatServer) GetUserChats(context.Context, *GetUserChatsRequest) (*GetUserChatsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetUserChats not implemented")
+}
+func (UnimplementedChatServer) StartChat(context.Context, *StartChatRequest) (*StartChatResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method StartChat not implemented")
 }
 
 // UnsafeChatServer may be embedded to opt out of forward compatibility for this service.
@@ -125,6 +141,24 @@ func _Chat_GetUserChats_Handler(srv interface{}, ctx context.Context, dec func(i
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Chat_StartChat_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StartChatRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ChatServer).StartChat(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Chat_StartChat_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ChatServer).StartChat(ctx, req.(*StartChatRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Chat_ServiceDesc is the grpc.ServiceDesc for Chat service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -139,6 +173,10 @@ var Chat_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetUserChats",
 			Handler:    _Chat_GetUserChats_Handler,
+		},
+		{
+			MethodName: "StartChat",
+			Handler:    _Chat_StartChat_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

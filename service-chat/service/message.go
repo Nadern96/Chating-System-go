@@ -61,3 +61,14 @@ func (s *MessageService) GetUserChats(ctx context.Context, userId string) ([]mod
 
 	return chats, nil
 }
+
+func (s *MessageService) StartChat(ctx context.Context, chat model.Chat) error {
+	query := `INSERT INTO chat (chatid, fromUserId, toUserId) VALUES (?, ?, ?)`
+
+	err := s.ctx.GetCassandra().Query(query, chat.ChatID, chat.FromUserID, chat.ToUserID).WithContext(ctx).Exec()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

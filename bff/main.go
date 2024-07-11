@@ -12,7 +12,7 @@ func main() {
 
 	defer serviceContext.Shutdown()
 
-	serviceContext.Logger().Info("Service bff-cf")
+	serviceContext.Logger().Info("Service bff")
 	httpServer(serviceContext)
 }
 
