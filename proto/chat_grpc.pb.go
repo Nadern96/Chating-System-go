@@ -19,9 +19,10 @@ import (
 const _ = grpc.SupportPackageIsVersion8
 
 const (
-	Chat_SendMessage_FullMethodName  = "/proto.chat/SendMessage"
-	Chat_GetUserChats_FullMethodName = "/proto.chat/GetUserChats"
-	Chat_StartChat_FullMethodName    = "/proto.chat/StartChat"
+	Chat_SendMessage_FullMethodName     = "/proto.chat/SendMessage"
+	Chat_GetUserChats_FullMethodName    = "/proto.chat/GetUserChats"
+	Chat_StartChat_FullMethodName       = "/proto.chat/StartChat"
+	Chat_GetChatMessages_FullMethodName = "/proto.chat/GetChatMessages"
 )
 
 // ChatClient is the client API for Chat service.
@@ -31,6 +32,7 @@ type ChatClient interface {
 	SendMessage(ctx context.Context, in *Message, opts ...grpc.CallOption) (*SendMessageResponse, error)
 	GetUserChats(ctx context.Context, in *GetUserChatsRequest, opts ...grpc.CallOption) (*GetUserChatsResponse, error)
 	StartChat(ctx context.Context, in *StartChatRequest, opts ...grpc.CallOption) (*StartChatResponse, error)
+	GetChatMessages(ctx context.Context, in *GetChatMessageRequest, opts ...grpc.CallOption) (*GetChatMessageResponse, error)
 }
 
 type chatClient struct {
@@ -71,6 +73,16 @@ func (c *chatClient) StartChat(ctx context.Context, in *StartChatRequest, opts .
 	return out, nil
 }
 
+func (c *chatClient) GetChatMessages(ctx context.Context, in *GetChatMessageRequest, opts ...grpc.CallOption) (*GetChatMessageResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetChatMessageResponse)
+	err := c.cc.Invoke(ctx, Chat_GetChatMessages_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ChatServer is the server API for Chat service.
 // All implementations should embed UnimplementedChatServer
 // for forward compatibility
@@ -78,6 +90,7 @@ type ChatServer interface {
 	SendMessage(context.Context, *Message) (*SendMessageResponse, error)
 	GetUserChats(context.Context, *GetUserChatsRequest) (*GetUserChatsResponse, error)
 	StartChat(context.Context, *StartChatRequest) (*StartChatResponse, error)
+	GetChatMessages(context.Context, *GetChatMessageRequest) (*GetChatMessageResponse, error)
 }
 
 // UnimplementedChatServer should be embedded to have forward compatible implementations.
@@ -92,6 +105,9 @@ func (UnimplementedChatServer) GetUserChats(context.Context, *GetUserChatsReques
 }
 func (UnimplementedChatServer) StartChat(context.Context, *StartChatRequest) (*StartChatResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method StartChat not implemented")
+}
+func (UnimplementedChatServer) GetChatMessages(context.Context, *GetChatMessageRequest) (*GetChatMessageResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetChatMessages not implemented")
 }
 
 // UnsafeChatServer may be embedded to opt out of forward compatibility for this service.
@@ -159,6 +175,24 @@ func _Chat_StartChat_Handler(srv interface{}, ctx context.Context, dec func(inte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Chat_GetChatMessages_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetChatMessageRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ChatServer).GetChatMessages(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Chat_GetChatMessages_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ChatServer).GetChatMessages(ctx, req.(*GetChatMessageRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Chat_ServiceDesc is the grpc.ServiceDesc for Chat service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -177,6 +211,10 @@ var Chat_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "StartChat",
 			Handler:    _Chat_StartChat_Handler,
+		},
+		{
+			MethodName: "GetChatMessages",
+			Handler:    _Chat_GetChatMessages_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

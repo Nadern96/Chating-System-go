@@ -3,15 +3,15 @@ package server
 import (
 	"context"
 	"errors"
-	"log"
 
 	"github.com/gocql/gocql"
 	"github.com/nadern96/Chating-System-go/ctx"
 	"github.com/nadern96/Chating-System-go/model"
 	"github.com/nadern96/Chating-System-go/proto"
 	"github.com/nadern96/Chating-System-go/service-chat/service"
+	"github.com/nadern96/Chating-System-go/utils"
+
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/metadata"
 )
 
 type ChatServer struct {
@@ -37,10 +37,13 @@ func (s *ChatServer) GrpcLogger(c context.Context, req interface{}, info *grpc.U
 func (s *ChatServer) SendMessage(c context.Context, req *proto.Message) (*proto.SendMessageResponse, error) {
 	op := "ChatServer.SendMessage"
 
-	if ok, _ := isAuthorized(c); !ok {
+	ok, fromUserId := utils.IsAuthorized(c)
+	if !ok {
 		s.ctx.Logger().Error(op + "." + model.Unauthorized)
 		return nil, ErrUnauthorized
 	}
+
+	req.FromUserId = fromUserId
 
 	msg, err := model.MessageToModel(req)
 	if err != nil {
@@ -62,7 +65,7 @@ func (s *ChatServer) SendMessage(c context.Context, req *proto.Message) (*proto.
 func (s *ChatServer) GetUserChats(c context.Context, req *proto.GetUserChatsRequest) (*proto.GetUserChatsResponse, error) {
 	op := "ChatServer.GetUserChats"
 
-	ok, userId := isAuthorized(c)
+	ok, userId := utils.IsAuthorized(c)
 	if !ok {
 		s.ctx.Logger().Error(op + "." + model.Unauthorized)
 		return nil, ErrUnauthorized
@@ -85,13 +88,12 @@ func (s *ChatServer) GetUserChats(c context.Context, req *proto.GetUserChatsRequ
 func (s *ChatServer) StartChat(c context.Context, req *proto.StartChatRequest) (*proto.StartChatResponse, error) {
 	op := "ChatServer.StartChat"
 
-	ok, userId := isAuthorized(c)
+	ok, userId := utils.IsAuthorized(c)
 	if !ok {
 		s.ctx.Logger().Error(op + "." + model.Unauthorized)
 		return nil, ErrUnauthorized
 	}
 
-	log.Println("userId = ", userId)
 	fromUserId, err := gocql.ParseUUID(userId)
 	if err != nil {
 		s.ctx.Logger().Error(op+".ParseUUID.fromUserId.err: ", err)
@@ -121,14 +123,25 @@ func (s *ChatServer) StartChat(c context.Context, req *proto.StartChatRequest) (
 	}, nil
 }
 
-func isAuthorized(ctx context.Context) (bool, string) {
-	md, ok := metadata.FromIncomingContext(ctx)
-	if ok {
-		userId := md.Get("USER_ID")
-		if len(userId) > 0 && userId[0] != "" {
-			return true, userId[0]
-		}
+func (s *ChatServer) GetChatMessages(c context.Context, req *proto.GetChatMessageRequest) (*proto.GetChatMessageResponse, error) {
+	op := "ChatServer.StartChat"
+
+	ok, _ := utils.IsAuthorized(c)
+	if !ok {
+		s.ctx.Logger().Error(op + "." + model.Unauthorized)
+		return nil, ErrUnauthorized
 	}
 
-	return false, ""
+	messages, err := s.messageService.GetChatMessages(c, req.ChatId, req.StartMsgId)
+	if err != nil {
+		s.ctx.Logger().Error(op+".messageService.GetChatMessages.err: ", err)
+		return nil, err
+	}
+
+	res := &proto.GetChatMessageResponse{}
+	for _, msg := range messages {
+		res.Messages = append(res.Messages, msg.ToProto())
+	}
+
+	return res, nil
 }

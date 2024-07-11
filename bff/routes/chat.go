@@ -33,6 +33,7 @@ func (r *ChatRouter) Install(engine *gin.RouterGroup) {
 	engine.POST("/send", r.AuthVerify(), r.Send)
 	engine.GET("", r.AuthVerify(), r.GetUserChats)
 	engine.POST("/start", r.AuthVerify(), r.StartChat)
+	engine.GET("/:chatId", r.AuthVerify(), r.GetChatMessages)
 }
 
 func (r *ChatRouter) AuthVerify() gin.HandlerFunc {
@@ -77,7 +78,7 @@ func (r *ChatRouter) Send(ginCtx *gin.Context) {
 		return
 	}
 
-	ginCtx.JSON(http.StatusOK, res.Message)
+	ginCtx.JSON(http.StatusOK, res)
 }
 
 func (r *ChatRouter) GetUserChats(ginCtx *gin.Context) {
@@ -109,6 +110,25 @@ func (r *ChatRouter) StartChat(ginCtx *gin.Context) {
 	res, err := r.chatClient.StartChat(newCtx, req)
 	if err != nil {
 		r.serviceContext.Logger().Error(op+".chatClient.StartChat err: ", err)
+		ginCtx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ginCtx.JSON(http.StatusOK, res)
+}
+
+func (r *ChatRouter) GetChatMessages(ginCtx *gin.Context) {
+	op := "chatRouter.GetChatMessages"
+
+	chatId := ginCtx.Param("chatId")
+
+	startMsgId := ginCtx.Query("startMsgId")
+
+	newCtx := metadata.AppendToOutgoingContext(ginCtx, "USER_ID", ginCtx.Request.Header.Get("USER_ID"))
+
+	res, err := r.chatClient.GetChatMessages(newCtx, &proto.GetChatMessageRequest{ChatId: chatId, StartMsgId: startMsgId})
+	if err != nil {
+		r.serviceContext.Logger().Error(op+".chatClient.GetChatMessages err: ", err)
 		ginCtx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

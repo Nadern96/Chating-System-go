@@ -1,11 +1,13 @@
 package utils
 
 import (
+	"context"
 	"os"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/nadern96/Chating-System-go/model"
 	"golang.org/x/crypto/bcrypt"
+	"google.golang.org/grpc/metadata"
 )
 
 func GenerateHashPassword(password string) (string, error) {
@@ -34,4 +36,16 @@ func ParseToken(tokenString string) (claims *model.Claims, err error) {
 	}
 
 	return claims, nil
+}
+
+func IsAuthorized(ctx context.Context) (bool, string) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if ok {
+		userId := md.Get("USER_ID")
+		if len(userId) > 0 && userId[0] != "" {
+			return true, userId[0]
+		}
+	}
+
+	return false, ""
 }
