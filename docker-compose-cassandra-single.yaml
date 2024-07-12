@@ -1,6 +1,7 @@
-version: '3'  #choose version as per your need
-
-services:
+version: '3.8' 
+ 
+ 
+services: 
   cassandra:
     image: cassandra:latest
     container_name: cassandra-container
@@ -12,5 +13,18 @@ services:
     volumes:
       - cassandra-data:/var/lib/cassandra
 
+  redis:
+    image: redis:latest
+    hostname: redis-chat 
+    container_name: redis-chat 
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/root/redis
+    environment:
+      - REDIS_PORT=6379
+
 volumes:
   cassandra-data:
+  redis-data:

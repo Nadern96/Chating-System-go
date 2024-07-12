@@ -120,7 +120,7 @@ func (ctx *DefaultServiceContext) ListenGRPC(port string, registerFn func(*grpc.
 }
 
 func (ctx *DefaultServiceContext) WithCassandra() *DefaultServiceContext {
-	cluster := gocql.NewCluster(os.Getenv("CASSANDRA_URL")+":9042", os.Getenv("CASSANDRA_URL")+":9043", os.Getenv("CASSANDRA_URL")+":9044")
+	cluster := gocql.NewCluster(os.Getenv("CASSANDRA_URL") + ":9042")
 	cluster.ConnectTimeout = 1 * time.Minute
 	if os.Getenv("ENVIRONMENT") == "local" {
 		cluster.DisableInitialHostLookup = true
