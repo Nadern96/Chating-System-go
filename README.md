@@ -9,6 +9,11 @@ before you run services you need the following to be installed:
 
 
 ## Run Locally
+## Initializing Database
+```
+bash setup_cassandra.sh
+```
+
 ### for each service you want to run:
 **running directly on local machine:**
 - first you need to run the docker-compose for Cassandra and Redis
@@ -74,8 +79,3 @@ go test ./service-auth/...
 
 ## Architecture
 ![Architecture](https://github.com/Nadern96/Chating-System-go/blob/main/architecture.png)
-
-## Initializing Database
-```
-bash setup_cassandra.sh
-```
