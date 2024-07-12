@@ -5,6 +5,7 @@
 before you run services you need the following to be installed:
 - **go 1.21**
 - **docker**
+- **cqlsh**
 
 
 ## Run Locally
@@ -71,4 +72,10 @@ go test ./service-chat/...
 go test ./service-auth/... 
 ```
 
+## Architecture
 ![Architecture](https://github.com/Nadern96/Chating-System-go/blob/main/architecture.png)
+
+## Initializing Database
+```
+bash setup_cassandra.sh
+```
